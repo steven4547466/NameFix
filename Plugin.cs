@@ -47,24 +47,6 @@ namespace NameFix
             int index = newInstructions.FindIndex(i => i.opcode == OpCodes.Ldarg_1) + 1;
             newInstructions.Insert(index, new CodeInstruction(OpCodes.Call, Method(typeof(Regex), nameof(Regex.Unescape))).MoveLabelsFrom(newInstructions[index]));
 
-            index = newInstructions.FindIndex(i => i.opcode == OpCodes.Br_S) + 1;
-            List<Label> labels = newInstructions[index].ExtractLabels();
-            newInstructions.RemoveAt(index);
-            newInstructions.InsertRange(index, new CodeInstruction[]
-            {
-                new CodeInstruction(OpCodes.Ldarg_0).WithLabels(labels),
-                new CodeInstruction(OpCodes.Call, PropertyGetter(typeof(NicknameSync), nameof(NicknameSync.MyNick)))
-            });
-
-            index = newInstructions.FindIndex(i => i.opcode == OpCodes.Call && (MethodInfo)i.operand == Method(typeof(Regex), nameof(Regex.Replace), new Type[] { typeof(string), typeof(string) })) + 4;
-            labels = newInstructions[index].ExtractLabels();
-            newInstructions.RemoveAt(index);
-            newInstructions.InsertRange(index, new CodeInstruction[]
-            {
-                new CodeInstruction(OpCodes.Ldarg_0).WithLabels(labels),
-                new CodeInstruction(OpCodes.Call, PropertyGetter(typeof(NicknameSync), nameof(NicknameSync.MyNick)))
-            });
-
             foreach (CodeInstruction instruction in newInstructions)
                 yield return instruction;
 
@@ -84,6 +66,27 @@ namespace NameFix
                 new CodeInstruction(OpCodes.Ldarg_1),
                 new CodeInstruction(OpCodes.Call, Method(typeof(Regex), nameof(Regex.Unescape))),
                 new CodeInstruction(OpCodes.Starg_S, 1)
+            });
+
+            foreach (CodeInstruction instruction in newInstructions)
+                yield return instruction;
+
+            ListPool<CodeInstruction>.Shared.Return(newInstructions);
+        }
+    }
+
+    [HarmonyPatch(typeof(NicknameSync), nameof(NicknameSync.UpdateCustomName))]
+    public class NicknameSyncUpdateCustomNamePatch
+    {
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+        {
+            List<CodeInstruction> newInstructions = ListPool<CodeInstruction>.Shared.Rent(instructions);
+
+            newInstructions.InsertRange(0, new CodeInstruction[]
+            {
+                new CodeInstruction(OpCodes.Ldarg_2),
+                new CodeInstruction(OpCodes.Call, Method(typeof(Regex), nameof(Regex.Unescape))),
+                new CodeInstruction(OpCodes.Starg_S, 2)
             });
 
             foreach (CodeInstruction instruction in newInstructions)
